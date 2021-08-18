@@ -416,21 +416,11 @@ func writeOutput(controlsCollection []*check.Controls) {
 		writeASFFOutput(controlsCollection)
 		return
 	}
-	if sNS {
-		writeSNSOutput(controlsCollection)
+	if sCC {
+		writeSCCOutput(controlsCollection)
 		return
 	}
 	writeStdoutOutput(controlsCollection)
-}
-
-func writeSNSOutput(controlsCollection []*check.Controls) {
-	for _, controls := range controlsCollection {
-		out, err := controls.JSON()
-		if err != nil {
-			exitWithError(fmt.Errorf("failed to output in SNS format: %v", err))
-		}
-		writeFindingToSns(string(out))
-	}
 }
 
 func writeJSONOutput(controlsCollection []*check.Controls) {
@@ -485,6 +475,19 @@ func writeASFFOutput(controlsCollection []*check.Controls) {
 		if err := writeFinding(out); err != nil {
 			exitWithError(fmt.Errorf("failed to output to ASFF: %v", err))
 		}
+	}
+}
+
+func writeSCCOutput(controlsCollection []*check.Controls) {
+	for _, controls := range controlsCollection {
+		out, err := controls.SCC()
+		if err != nil {
+			exitWithError(fmt.Errorf("failed to output to SCC: %v", err))
+		}
+		if err := writeFindingToScc(out); err != nil {
+			exitWithError(fmt.Errorf("failed to output to SCC: %v", err))
+		}
+		// writeFindingToScc(string(out))
 	}
 }
 

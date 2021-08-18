@@ -1,2 +1,5 @@
 ---
 ## Version-specific settings that override the values in cfg/config.yaml
+## These settings are required if you are using the --scc option to report findings to GCP Security Command Centre
+## GCP source name is required.
+GCP_SOURCE_NAME: "<GCP_SOURCE_NAME>"

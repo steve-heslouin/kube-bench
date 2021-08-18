@@ -20,13 +20,19 @@ import (
 	"encoding/xml"
 	"fmt"
 	"time"
+	"strings"
 
+	"github.com/google/uuid"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/securityhub"
 	"github.com/golang/glog"
 	"github.com/onsi/ginkgo/reporters"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
+
+	"github.com/golang/protobuf/ptypes"
+	structpb "github.com/golang/protobuf/ptypes/struct"
+	securitycenterpb "google.golang.org/genproto/googleapis/cloud/securitycenter/v1"
 )
 
 const (
@@ -281,6 +287,75 @@ func (controls *Controls) ASFF() ([]*securityhub.AwsSecurityFinding, error) {
 				}
 				fs = append(fs, &f)
 			}
+		}
+	}
+	return fs, nil
+}
+// SCC encodes the results of last run to GCP Security Command Centre (SCC).
+func (controls *Controls) SCC() ([]*securitycenterpb.CreateFindingRequest, error) {
+	// sourceName := "organizations/882222244608/sources/1667217675174426499"
+	sourceName, err := getConfig("GCP_SOURCE_NAME")
+	if err != nil {
+		return nil, err
+	}
+	fs := []*securitycenterpb.CreateFindingRequest{}
+	eventTime, err := ptypes.TimestampProto(time.Now())
+	if err != nil {
+		return nil, fmt.Errorf("TimestampProto: %v", err)
+	}
+	for _, g := range controls.Groups {
+		for _, check := range g.Checks {
+			uuidWithHyphen := uuid.New()
+			uuid := strings.Replace(uuidWithHyphen.String(), "-", "", -1)
+			f := securitycenterpb.CreateFindingRequest{
+				Parent:    sourceName,
+				FindingId: uuid,
+				Finding: &securitycenterpb.Finding{
+					State: securitycenterpb.Finding_ACTIVE,
+					// Resource the finding is associated with.  This is an
+					// example any resource identifier can be used.
+					ResourceName: "GKE",
+					// A free-form category.Error converting now
+					Category: "KUBE_BENCH",
+					// The time associated with discovering the issue.
+					EventTime: eventTime,
+					// Define key-value pair metadata to include with the finding.
+					// Severity: securitycenterpb.Finding_HIGH,
+					SourceProperties: map[string]*structpb.Value{
+						"Section": {
+							Kind: &structpb.Value_StringValue{StringValue: fmt.Sprintf("%s %s", controls.ID, controls.Text)},
+						},
+						"Subsection": {
+							Kind: &structpb.Value_StringValue{StringValue: fmt.Sprintf("%s %s", g.ID, g.Text)},
+						},
+						"Finding": {
+							Kind: &structpb.Value_StringValue{StringValue: fmt.Sprintf("%s %s", check.ID, check.Text)},
+						},
+						"Reason": {
+							Kind: &structpb.Value_StringValue{StringValue: check.Reason},
+						},
+						"ActualResult": {
+							Kind: &structpb.Value_StringValue{StringValue: check.ActualValue},
+						},
+						"ExpectedResult": {
+							Kind: &structpb.Value_StringValue{StringValue: check.ExpectedResult},
+						},
+						"Remediation": {
+							Kind: &structpb.Value_StringValue{StringValue: check.Remediation},
+						},
+						"Audit": {
+							Kind: &structpb.Value_StringValue{StringValue: check.Audit},
+						},
+						"State": {
+							Kind: &structpb.Value_StringValue{StringValue: fmt.Sprintf("%s", check.State)},
+						},
+						"Scored": {
+							Kind: &structpb.Value_BoolValue{BoolValue: check.Scored},
+						},
+					},
+				},
+			}
+			fs = append(fs, &f)
 		}
 	}
 	return fs, nil

@@ -10,15 +10,11 @@ ARG GOOS=linux
 ARG GOARCH=amd64
 RUN GO111MODULE=on CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH go build -a -ldflags "-X github.com/aquasecurity/kube-bench/cmd.KubeBenchVersion=${KUBEBENCH_VERSION} -w" -o /go/bin/kube-bench
 
-FROM alpine:3.14.1 AS run
+FROM alpine:3.13 AS run
 WORKDIR /opt/kube-bench/
 # add GNU ps for -C, -o cmd, and --no-headers support
 # https://github.com/aquasecurity/kube-bench/issues/109
 RUN apk --no-cache add procps
-
-# Upgrading apk-tools to remediate CVE-2021-36159 - https://snyk.io/vuln/SNYK-ALPINE314-APKTOOLS-1533752
-# https://github.com/aquasecurity/kube-bench/issues/943
-RUN apk --no-cache upgrade apk-tools
 
 # Openssl is used by OpenShift tests
 # https://github.com/aquasecurity/kube-bench/issues/535

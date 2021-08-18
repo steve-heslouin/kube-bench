@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/golang/glog"
+	"github.com/jinzhu/gorm"
+	_ "github.com/jinzhu/gorm/dialects/postgres" // database packages get blank imports
 	"github.com/spf13/viper"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
 )
 
 func savePgsql(jsonInfo string) {
@@ -48,10 +48,11 @@ func savePgsql(jsonInfo string) {
 		ScanInfo string    `gorm:"type:jsonb not null"`
 	}
 
-	db, err := gorm.Open(postgres.Open(connInfo), &gorm.Config{})
+	db, err := gorm.Open("postgres", connInfo)
 	if err != nil {
 		exitWithError(fmt.Errorf("received error connecting to database: %s", err))
 	}
+	defer db.Close()
 
 	db.Debug().AutoMigrate(&ScanResult{})
 	db.Save(&ScanResult{ScanHost: hostname, ScanTime: timestamp, ScanInfo: jsonInfo})
